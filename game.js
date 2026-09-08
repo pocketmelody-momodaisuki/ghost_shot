@@ -1,30 +1,48 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-let ghostImg = new Image();
-ghostImg.src = "ghost.png";  // あなたのゴースト画像を使う
+// ゴースト画像（アニメーション）
+let ghost1 = new Image();
+ghost1.src = "ghost_walk1.png";
 
+let ghost2 = new Image();
+ghost2.src = "ghost_walk2.png";
+
+let ghostFrame = 0;
+let ghostAnimTimer = 0;
+
+// 効果音
+let clearSound = new Audio("clear.wav");
+let launchSound = new Audio("launch.wav");
+
+// ゴースト本体
 let ghost = {
   x: 100,
-  y: 300,
+  y: 350,
   vx: 0,
   vy: 0,
   radius: 25,
-  dragging: false,
-  offsetX: 0,
-  offsetY: 0
+  dragging: false
 };
 
 const gravity = 0.4;
 const bounce = 0.6;
 
 // ターゲット
-let target = { x: 500, y: 300, radius: 30 };
+let target = { x: 700, y: 350, radius: 30 };
 
 // スリングショットの位置
 const slingX = 100;
-const slingY = 300;
+const slingY = 350;
 
+// 壊れるブロック
+let blocks = [
+  { x: 500, y: 300, w: 60, h: 20, alive: true },
+  { x: 560, y: 300, w: 60, h: 20, alive: true },
+  { x: 530, y: 260, w: 60, h: 20, alive: true }
+];
+
+// タッチ・マウス操作
 canvas.addEventListener("pointerdown", (e) => {
   let rect = canvas.getBoundingClientRect();
   let mx = e.clientX - rect.left;
@@ -50,9 +68,10 @@ canvas.addEventListener("pointerup", () => {
   if (ghost.dragging) {
     ghost.dragging = false;
 
-    // 発射速度（スリングショットの位置からの距離）
     ghost.vx = (slingX - ghost.x) * 0.15;
     ghost.vy = (slingY - ghost.y) * 0.15;
+
+    launchSound.play();
   }
 });
 
@@ -81,10 +100,31 @@ function update() {
     }
   }
 
+  // ゴーストアニメーション
+  ghostAnimTimer++;
+  if (ghostAnimTimer % 10 === 0) {
+    ghostFrame = (ghostFrame + 1) % 2;
+  }
+
+  // ブロック衝突判定
+  blocks.forEach(block => {
+    if (!block.alive) return;
+
+    if (
+      ghost.x + ghost.radius > block.x &&
+      ghost.x - ghost.radius < block.x + block.w &&
+      ghost.y + ghost.radius > block.y &&
+      ghost.y - ghost.radius < block.y + block.h
+    ) {
+      block.alive = false;
+    }
+  });
+
   // ターゲットに当たった？
   let dx = ghost.x - target.x;
   let dy = ghost.y - target.y;
   if (dx * dx + dy * dy < (ghost.radius + target.radius) ** 2) {
+    clearSound.play();
     alert("クリア！");
     reset();
   }
@@ -95,6 +135,8 @@ function reset() {
   ghost.y = slingY;
   ghost.vx = 0;
   ghost.vy = 0;
+
+  blocks.forEach(b => b.alive = true);
 }
 
 function draw() {
@@ -110,8 +152,17 @@ function draw() {
     ctx.stroke();
   }
 
-  // ゴースト
-  ctx.drawImage(ghostImg, ghost.x - ghost.radius, ghost.y - ghost.radius, ghost.radius * 2, ghost.radius * 2);
+  // ブロック
+  blocks.forEach(block => {
+    if (block.alive) {
+      ctx.fillStyle = "#888";
+      ctx.fillRect(block.x, block.y, block.w, block.h);
+    }
+  });
+
+  // ゴースト（アニメーション）
+  let img = ghostFrame === 0 ? ghost1 : ghost2;
+  ctx.drawImage(img, ghost.x - ghost.radius, ghost.y - ghost.radius, ghost.radius * 2, ghost.radius * 2);
 
   // ターゲット
   ctx.fillStyle = "lime";
