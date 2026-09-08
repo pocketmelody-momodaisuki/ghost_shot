@@ -2,7 +2,9 @@
 //  iPhone判定（Safari専用対策）
 // ===============================
 // iPhone と iPad の両方を判定
-const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent)
+           || (navigator.userAgent.includes("Mac") && "ontouchend" in document);
+
 
 // iOS 端末だけスクロール禁止
 if (isIOS) {

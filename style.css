@@ -1,8 +1,11 @@
 html, body {
-  margin: 0;
-  padding: 0;
-  background: black;
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;   /* ← これが iPad で必須 */
+    touch-action: none;
 }
+
 
 /* PC用（縮まない） */
 @media (min-width: 800px) {
