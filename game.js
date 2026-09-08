@@ -3,15 +3,17 @@ document.addEventListener("touchmove", function(e) {
   e.preventDefault();
 }, { passive: false });
 
-document.body.style.overflow = "hidden";
+document.addEventListener("touchstart", function(e) {
+  e.preventDefault();
+}, { passive: false });
 
+document.body.style.overflow = "hidden";
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-// ゴースト画像（アニメーション）
+// ゴースト画像
 let ghost1 = new Image();
 ghost1.src = "ghost_walk1.png";
-
 let ghost2 = new Image();
 ghost2.src = "ghost_walk2.png";
 
@@ -42,7 +44,7 @@ blockImg.src = "block.png";
 let targetImg = new Image();
 targetImg.src = "target.png";
 
-// ゴースト本体
+// ゴースト
 let ghost = {
   x: 100,
   y: 350,
@@ -60,11 +62,11 @@ const bounce = 0.6;
 // ターゲット
 let target = { x: 700, y: 350, radius: 30 };
 
-// スリングショットの位置
+// スリングショット位置
 const slingX = 100;
 const slingY = 350;
 
-// 障害物（全部壊れる）
+// 障害物（3段）
 let blocks = [
   { x: 500, y: 300, w: 60, h: 60, alive: true },
   { x: 560, y: 300, w: 60, h: 60, alive: true },
@@ -132,7 +134,6 @@ canvas.addEventListener("pointerup", (e) => {
 
 function update() {
 
-  // クリア後は完全停止
   if (ghost.frozen) return;
 
   // 重力（引っ張り中は無効）
@@ -142,7 +143,7 @@ function update() {
     ghost.y += ghost.vy;
   }
 
-  // 壁で跳ねる
+  // 壁判定
   if (ghost.x < ghost.radius) {
     ghost.x = ghost.radius;
     ghost.vx *= -bounce;
@@ -175,18 +176,16 @@ function update() {
     wasOnGround = onGround;
   }
 
-  // ゴーストアニメーション
+  // アニメーション
   ghostAnimTimer++;
   if (ghostAnimTimer % 10 === 0) {
     ghostFrame = (ghostFrame + 1) % 2;
   }
 
-  // Try 表示タイマー
   if (tryTextTimer > 0) tryTextTimer--;
 
   // ★ 引っ張り中は障害物判定を無効化
   if (!ghost.dragging && !ghost.waiting && !ghost.frozen) {
-
     blocks.forEach(block => {
       if (!block.alive) return;
 
@@ -206,7 +205,7 @@ function update() {
     });
   }
 
-  // ★ ターゲットに当たった（クリア判定は一度だけ）
+  // ★ クリア判定（1回だけ）
   let dx = ghost.x - target.x;
   let dy = ghost.y - target.y;
 
