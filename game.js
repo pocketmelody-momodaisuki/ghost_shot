@@ -12,8 +12,19 @@ let ghostFrame = 0;
 let ghostAnimTimer = 0;
 
 // 効果音
-let clearSound = new Audio("clear.wav");
+let stretchSound = new Audio("stretch.wav");
+let hitBlockSound = new Audio("hit_block.wav");
+let hitTargetSound = new Audio("hit_target.wav");
+let hitGroundSound = new Audio("hit_ground.wav");
 let launchSound = new Audio("launch.wav");
+
+// 障害物画像
+let blockImg = new Image();
+blockImg.src = "block.png";
+
+// ターゲット画像
+let targetImg = new Image();
+targetImg.src = "target.png";
 
 // ゴースト本体
 let ghost = {
@@ -37,9 +48,9 @@ const slingY = 350;
 
 // 壊れるブロック
 let blocks = [
-  { x: 500, y: 300, w: 60, h: 20, alive: true },
-  { x: 560, y: 300, w: 60, h: 20, alive: true },
-  { x: 530, y: 260, w: 60, h: 20, alive: true }
+  { x: 500, y: 300, w: 60, h: 60, alive: true },
+  { x: 560, y: 300, w: 60, h: 60, alive: true },
+  { x: 530, y: 240, w: 60, h: 60, alive: true }
 ];
 
 // タッチ・マウス操作
@@ -53,6 +64,8 @@ canvas.addEventListener("pointerdown", (e) => {
 
   if (dx * dx + dy * dy < ghost.radius * ghost.radius) {
     ghost.dragging = true;
+    stretchSound.currentTime = 0;
+    stretchSound.play();
   }
 });
 
@@ -71,6 +84,7 @@ canvas.addEventListener("pointerup", () => {
     ghost.vx = (slingX - ghost.x) * 0.15;
     ghost.vy = (slingY - ghost.y) * 0.15;
 
+    stretchSound.pause();
     launchSound.play();
   }
 });
@@ -85,18 +99,22 @@ function update() {
     if (ghost.x < ghost.radius) {
       ghost.x = ghost.radius;
       ghost.vx *= -bounce;
+      hitBlockSound.play();
     }
     if (ghost.x > canvas.width - ghost.radius) {
       ghost.x = canvas.width - ghost.radius;
       ghost.vx *= -bounce;
+      hitBlockSound.play();
     }
     if (ghost.y < ghost.radius) {
       ghost.y = ghost.radius;
       ghost.vy *= -bounce;
+      hitBlockSound.play();
     }
     if (ghost.y > canvas.height - ghost.radius) {
       ghost.y = canvas.height - ghost.radius;
       ghost.vy *= -bounce;
+      hitGroundSound.play();
     }
   }
 
@@ -117,6 +135,7 @@ function update() {
       ghost.y - ghost.radius < block.y + block.h
     ) {
       block.alive = false;
+      hitBlockSound.play();
     }
   });
 
@@ -124,7 +143,7 @@ function update() {
   let dx = ghost.x - target.x;
   let dy = ghost.y - target.y;
   if (dx * dx + dy * dy < (ghost.radius + target.radius) ** 2) {
-    clearSound.play();
+    hitTargetSound.play();
     alert("クリア！");
     reset();
   }
@@ -155,8 +174,7 @@ function draw() {
   // ブロック
   blocks.forEach(block => {
     if (block.alive) {
-      ctx.fillStyle = "#888";
-      ctx.fillRect(block.x, block.y, block.w, block.h);
+      ctx.drawImage(blockImg, block.x, block.y, block.w, block.h);
     }
   });
 
@@ -165,10 +183,13 @@ function draw() {
   ctx.drawImage(img, ghost.x - ghost.radius, ghost.y - ghost.radius, ghost.radius * 2, ghost.radius * 2);
 
   // ターゲット
-  ctx.fillStyle = "lime";
-  ctx.beginPath();
-  ctx.arc(target.x, target.y, target.radius, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.drawImage(
+    targetImg,
+    target.x - target.radius,
+    target.y - target.radius,
+    target.radius * 2,
+    target.radius * 2
+  );
 }
 
 function loop() {
