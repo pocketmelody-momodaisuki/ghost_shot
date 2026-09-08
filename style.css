@@ -1,12 +1,15 @@
 html, body {
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    overflow: hidden;   /* ← これが iPad で必須 */
-    touch-action: none;
+  margin: 0;
+  padding: 0;
+  background: black;
 }
 
+  /* Safari のスクロール・リフレッシュを完全停止 */
+  overscroll-behavior: none;
+  overflow: hidden;
+  touch-action: none;
 
+  background: black; /* ← 背景が白くなるのを防ぐ */
 /* PC用（縮まない） */
 @media (min-width: 800px) {
   canvas {
@@ -17,6 +20,9 @@ html, body {
   }
 }
 
+canvas {
+  display: block;
+  touch-action: none;
 /* iPhone用（横幅フィット） */
 @media (max-width: 799px) {
   html, body {
