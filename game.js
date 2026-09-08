@@ -24,12 +24,22 @@ canvas.height = 400;
 function applyDisplaySize() {
     if (isiPhone) {
         canvas.style.width = "100vw";
-        canvas.style.height = "50vw"; // 800×400 の比率
+
+        // iPhoneの向きを判定
+        if (window.innerHeight > window.innerWidth) {
+            // ★ 縦向き（今まで通り）
+            canvas.style.height = "50vw";
+        } else {
+            // ★ 横向き（高さを増やす）
+            canvas.style.height = "100vw";
+        }
+
     } else {
         canvas.style.width = "800px";
         canvas.style.height = "400px";
     }
 }
+
 applyDisplaySize();
 window.addEventListener("resize", applyDisplaySize);
 
