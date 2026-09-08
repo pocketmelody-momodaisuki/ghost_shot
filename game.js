@@ -11,6 +11,10 @@ ghost2.src = "ghost_walk2.png";
 let ghostFrame = 0;
 let ghostAnimTimer = 0;
 
+// 状態管理
+let wasOnGround = false;
+let lives = 3;
+
 // 効果音
 let stretchSound = new Audio("stretch.wav");
 let hitBlockSound = new Audio("hit_block.wav");
@@ -46,11 +50,13 @@ let target = { x: 700, y: 350, radius: 30 };
 const slingX = 100;
 const slingY = 350;
 
-// 壊れるブロック
+// 障害物（増やしてOK）
 let blocks = [
-  { x: 500, y: 300, w: 60, h: 60, alive: true },
-  { x: 560, y: 300, w: 60, h: 60, alive: true },
-  { x: 530, y: 240, w: 60, h: 60, alive: true }
+  { x: 500, y: 300, w: 60, h: 60 },
+  { x: 560, y: 300, w: 60, h: 60 },
+  { x: 530, y: 240, w: 60, h: 60 },
+  { x: 600, y: 260, w: 60, h: 60 }, // 追加例
+  { x: 450, y: 320, w: 60, h: 60 }  // 追加例
 ];
 
 // タッチ・マウス操作
@@ -111,11 +117,18 @@ function update() {
       ghost.vy *= -bounce;
       hitBlockSound.play();
     }
-    if (ghost.y > canvas.height - ghost.radius) {
+
+    // 地面判定（初回だけ音）
+    let onGround = ghost.y > canvas.height - ghost.radius;
+    if (onGround) {
       ghost.y = canvas.height - ghost.radius;
       ghost.vy *= -bounce;
-      hitGroundSound.play();
+
+      if (!wasOnGround) {
+        hitGroundSound.play();
+      }
     }
+    wasOnGround = onGround;
   }
 
   // ゴーストアニメーション
@@ -124,17 +137,22 @@ function update() {
     ghostFrame = (ghostFrame + 1) % 2;
   }
 
-  // ブロック衝突判定
+  // 障害物衝突判定（貫通しない・反動で跳ね返る）
   blocks.forEach(block => {
-    if (!block.alive) return;
-
     if (
       ghost.x + ghost.radius > block.x &&
       ghost.x - ghost.radius < block.x + block.w &&
       ghost.y + ghost.radius > block.y &&
       ghost.y - ghost.radius < block.y + block.h
     ) {
-      block.alive = false;
+      // 反動で跳ね返る
+      ghost.vx *= -0.5;   // 後ろに跳ね返る
+      ghost.vy = -2;      // 少し上に跳ねる
+
+      // ブロックの外側に押し戻す
+      if (ghost.vx > 0) ghost.x = block.x - ghost.radius;
+      if (ghost.vx < 0) ghost.x = block.x + block.w + ghost.radius;
+
       hitBlockSound.play();
     }
   });
@@ -145,17 +163,30 @@ function update() {
   if (dx * dx + dy * dy < (ghost.radius + target.radius) ** 2) {
     hitTargetSound.play();
     alert("クリア！");
-    reset();
+    fullReset();
   }
 }
 
-function reset() {
+function fullReset() {
+  lives = 3;
   ghost.x = slingX;
   ghost.y = slingY;
   ghost.vx = 0;
   ghost.vy = 0;
+}
 
-  blocks.forEach(b => b.alive = true);
+function reset() {
+  lives--;
+  if (lives <= 0) {
+    alert("ゲームオーバー！");
+    fullReset();
+    return;
+  }
+
+  ghost.x = slingX;
+  ghost.y = slingY;
+  ghost.vx = 0;
+  ghost.vy = 0;
 }
 
 function draw() {
@@ -171,11 +202,14 @@ function draw() {
     ctx.stroke();
   }
 
+  // 残機表示
+  ctx.fillStyle = "white";
+  ctx.font = "20px sans-serif";
+  ctx.fillText("Ghost: " + lives, 20, 30);
+
   // ブロック
   blocks.forEach(block => {
-    if (block.alive) {
-      ctx.drawImage(blockImg, block.x, block.y, block.w, block.h);
-    }
+    ctx.drawImage(blockImg, block.x, block.y, block.w, block.h);
   });
 
   // ゴースト（アニメーション）
