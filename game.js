@@ -1,14 +1,16 @@
 // ===============================
 //  iPhone判定（Safari専用対策）
 // ===============================
-const isiPhone = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+// iPhone と iPad の両方を判定
+const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-// iPhoneだけスクロール禁止
-if (isiPhone) {
+// iOS 端末だけスクロール禁止
+if (isIOS) {
     document.addEventListener("touchmove", e => e.preventDefault(), { passive: false });
     document.addEventListener("touchstart", e => e.preventDefault(), { passive: false });
     document.body.style.overflow = "hidden";
 }
+
 
 // ===============================
 //  Canvas 初期化（内部座標は固定）
