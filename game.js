@@ -11,14 +11,28 @@ if (isiPhone) {
 }
 
 // ===============================
-//  Canvas 初期化（固定サイズ）
+//  Canvas 初期化
 // ===============================
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-// ★ PCでもスマホでも 800×400 に固定（縦横比が崩れない）
+// ★ 内部座標は固定（800×400）
+//   → PCでもiPhoneでもゲーム判定がズレない
 canvas.width = 800;
 canvas.height = 400;
+
+// ★ iPhoneでは表示サイズだけ縮小（内部座標はそのまま）
+function applyDisplaySize() {
+    if (isiPhone) {
+        canvas.style.width = "100vw";
+        canvas.style.height = "50vw"; // 800×400 の比率（2:1）
+    } else {
+        canvas.style.width = "800px";
+        canvas.style.height = "400px";
+    }
+}
+applyDisplaySize();
+window.addEventListener("resize", applyDisplaySize);
 
 // ===============================
 //  ゲーム画像
@@ -50,7 +64,7 @@ let gameoverSound = new Audio("gameover.wav");
 // ===============================
 let ghost = {
     x: 100,
-    y: 300,   // ★ PCで引っ張りやすいように上げた（350→300）
+    y: 250,   // ★ さらに上げた（300 → 250）
     vx: 0,
     vy: 0,
     radius: 25,
@@ -70,7 +84,7 @@ const gravity = 0.4;
 const bounce = 0.6;
 
 const slingX = 100;
-const slingY = 300;
+const slingY = 250;
 
 let target = { x: 700, y: 350, radius: 30 };
 
@@ -106,8 +120,8 @@ canvas.addEventListener("pointerdown", (e) => {
     if (ghost.frozen) return;
 
     let rect = canvas.getBoundingClientRect();
-    let mx = e.clientX - rect.left;
-    let my = e.clientY - rect.top;
+    let mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+    let my = (e.clientY - rect.top) * (canvas.height / rect.height);
 
     let dx = mx - ghost.x;
     let dy = my - ghost.y;
@@ -125,8 +139,8 @@ canvas.addEventListener("pointermove", (e) => {
 
     if (ghost.dragging && !ghost.frozen) {
         let rect = canvas.getBoundingClientRect();
-        ghost.x = e.clientX - rect.left;
-        ghost.y = e.clientY - rect.top;
+        ghost.x = (e.clientX - rect.left) * (canvas.width / rect.width);
+        ghost.y = (e.clientY - rect.top) * (canvas.height / rect.height);
     }
 }, { passive: false });
 
