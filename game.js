@@ -1,33 +1,52 @@
-// ★ iPhone Safari の画面スクロール・リフレッシュを完全停止
-document.addEventListener("touchmove", function(e) {
-  e.preventDefault();
-}, { passive: false });
+// ===============================
+//  iPhone判定（Safari専用対策）
+// ===============================
+const isiPhone = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-document.addEventListener("touchstart", function(e) {
-  e.preventDefault();
-}, { passive: false });
+// iPhoneだけスクロール禁止（PCでは絶対に禁止しない）
+if (isiPhone) {
+    document.addEventListener("touchmove", e => e.preventDefault(), { passive: false });
+    document.addEventListener("touchstart", e => e.preventDefault(), { passive: false });
+    document.body.style.overflow = "hidden";
+}
 
-document.body.style.overflow = "hidden";
+// ===============================
+//  Canvas 初期化（PCとiPhoneでサイズを分ける）
+// ===============================
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-// ゴースト画像
+// PC → 800×400  
+// iPhone → 横幅フィット、高さは比率維持（2:1）
+function resizeCanvas() {
+    if (isiPhone) {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerWidth * 0.5;  // 800x400 の比率
+    } else {
+        canvas.width = 800;
+        canvas.height = 400;
+    }
+}
+resizeCanvas();
+window.addEventListener("resize", resizeCanvas);
+
+// ===============================
+//  ゲーム画像
+// ===============================
 let ghost1 = new Image();
 ghost1.src = "ghost_walk1.png";
 let ghost2 = new Image();
 ghost2.src = "ghost_walk2.png";
 
-let ghostFrame = 0;
-let ghostAnimTimer = 0;
+let blockImg = new Image();
+blockImg.src = "block.png";
 
-// 状態管理
-let wasOnGround = false;
-let lives = 3;
-let tryText = "";
-let tryTextTimer = 0;
-let cleared = false;
+let targetImg = new Image();
+targetImg.src = "target.png";
 
-// 効果音
+// ===============================
+//  効果音
+// ===============================
 let stretchSound = new Audio("stretch.wav");
 let hitBlockSound = new Audio("hit_block.wav");
 let hitTargetSound = new Audio("hit_target.wav");
@@ -36,284 +55,302 @@ let launchSound = new Audio("launch.wav");
 let clearSound = new Audio("clear.wav");
 let gameoverSound = new Audio("gameover.wav");
 
-// 障害物画像
-let blockImg = new Image();
-blockImg.src = "block.png";
-
-// ターゲット画像
-let targetImg = new Image();
-targetImg.src = "target.png";
-
-// ゴースト
+// ===============================
+//  ゲーム状態
+// ===============================
 let ghost = {
-  x: 100,
-  y: 350,
-  vx: 0,
-  vy: 0,
-  radius: 25,
-  dragging: false,
-  waiting: true,
-  frozen: false
+    x: 100,
+    y: 350,
+    vx: 0,
+    vy: 0,
+    radius: 25,
+    dragging: false,
+    waiting: true,
+    frozen: false
 };
+
+let lives = 3;
+let cleared = false;
+let wasOnGround = false;
+
+let tryText = "";
+let tryTextTimer = 0;
 
 const gravity = 0.4;
 const bounce = 0.6;
 
-// ターゲット
-let target = { x: 700, y: 350, radius: 30 };
-
-// スリングショット位置
 const slingX = 100;
 const slingY = 350;
 
-// 障害物（3段）
+let target = { x: 700, y: 350, radius: 30 };
+
+// ===============================
+//  障害物（3段）
+// ===============================
 let blocks = [
-  { x: 500, y: 300, w: 60, h: 60, alive: true },
-  { x: 560, y: 300, w: 60, h: 60, alive: true },
-  { x: 620, y: 300, w: 60, h: 60, alive: true },
-  { x: 530, y: 240, w: 60, h: 60, alive: true },
-  { x: 590, y: 240, w: 60, h: 60, alive: true },
-  { x: 560, y: 180, w: 60, h: 60, alive: true }
+    { x: 500, y: 300, w: 60, h: 60, alive: true },
+    { x: 560, y: 300, w: 60, h: 60, alive: true },
+    { x: 620, y: 300, w: 60, h: 60, alive: true },
+    { x: 530, y: 240, w: 60, h: 60, alive: true },
+    { x: 590, y: 240, w: 60, h: 60, alive: true },
+    { x: 560, y: 180, w: 60, h: 60, alive: true }
 ];
 
-// Try 表示
+// ===============================
+//  Try 表示
+// ===============================
 function showTryText() {
-  if (lives === 3) tryText = "1st Try";
-  else if (lives === 2) tryText = "2nd Try";
-  else if (lives === 1) tryText = "Last Try";
+    if (lives === 3) tryText = "1st Try";
+    else if (lives === 2) tryText = "2nd Try";
+    else if (lives === 1) tryText = "Last Try";
 
-  tryTextTimer = 60;
+    tryTextTimer = 60;
 }
 
-// pointerdown（iPhone対応）
+// ===============================
+//  pointer イベント（iPhoneだけ preventDefault）
+// ===============================
 canvas.addEventListener("pointerdown", (e) => {
-  e.preventDefault();
+    if (isiPhone) e.preventDefault();
 
-  if (ghost.frozen) return;
+    if (ghost.frozen) return;
 
-  let rect = canvas.getBoundingClientRect();
-  let mx = e.clientX - rect.left;
-  let my = e.clientY - rect.top;
-
-  let dx = mx - ghost.x;
-  let dy = my - ghost.y;
-
-  if (dx * dx + dy * dy < ghost.radius * ghost.radius) {
-    ghost.dragging = true;
-    ghost.waiting = false;
-    stretchSound.currentTime = 0;
-    stretchSound.play();
-  }
-}, { passive: false });
-
-// pointermove（iPhone対応）
-canvas.addEventListener("pointermove", (e) => {
-  e.preventDefault();
-
-  if (ghost.dragging && !ghost.frozen) {
     let rect = canvas.getBoundingClientRect();
-    ghost.x = e.clientX - rect.left;
-    ghost.y = e.clientY - rect.top;
-  }
+    let mx = e.clientX - rect.left;
+    let my = e.clientY - rect.top;
+
+    let dx = mx - ghost.x;
+    let dy = my - ghost.y;
+
+    if (dx * dx + dy * dy < ghost.radius * ghost.radius) {
+        ghost.dragging = true;
+        ghost.waiting = false;
+        stretchSound.currentTime = 0;
+        stretchSound.play();
+    }
 }, { passive: false });
 
-// pointerup（iPhone対応）
+canvas.addEventListener("pointermove", (e) => {
+    if (isiPhone) e.preventDefault();
+
+    if (ghost.dragging && !ghost.frozen) {
+        let rect = canvas.getBoundingClientRect();
+        ghost.x = e.clientX - rect.left;
+        ghost.y = e.clientY - rect.top;
+    }
+}, { passive: false });
+
 canvas.addEventListener("pointerup", (e) => {
-  e.preventDefault();
+    if (isiPhone) e.preventDefault();
 
-  if (ghost.dragging && !ghost.frozen) {
-    ghost.dragging = false;
+    if (ghost.dragging && !ghost.frozen) {
+        ghost.dragging = false;
 
-    ghost.vx = (slingX - ghost.x) * 0.15;
-    ghost.vy = (slingY - ghost.y) * 0.15;
+        ghost.vx = (slingX - ghost.x) * 0.15;
+        ghost.vy = (slingY - ghost.y) * 0.15;
 
-    stretchSound.pause();
-    launchSound.play();
-  }
+        stretchSound.pause();
+        launchSound.play();
+    }
 }, { passive: false });
+
+// ===============================
+//  ゲーム更新
+// ===============================
+let ghostFrame = 0;
+let ghostAnimTimer = 0;
 
 function update() {
 
-  if (ghost.frozen) return;
+    if (ghost.frozen) return;
 
-  // 重力（引っ張り中は無効）
-  if (!ghost.dragging && !ghost.waiting) {
-    ghost.vy += gravity;
-    ghost.x += ghost.vx;
-    ghost.y += ghost.vy;
-  }
-
-  // 壁判定
-  if (ghost.x < ghost.radius) {
-    ghost.x = ghost.radius;
-    ghost.vx *= -bounce;
-    hitBlockSound.play();
-  }
-  if (ghost.x > canvas.width - ghost.radius) {
-    ghost.x = canvas.width - ghost.radius;
-    ghost.vx *= -bounce;
-    hitBlockSound.play();
-  }
-  if (ghost.y < ghost.radius) {
-    ghost.y = ghost.radius;
-    ghost.vy *= -bounce;
-    hitBlockSound.play();
-  }
-
-  // 地面落下判定（引っ張り中は無効）
-  if (!ghost.waiting && !ghost.dragging) {
-    let onGround = ghost.y >= canvas.height - ghost.radius;
-
-    if (onGround) {
-      ghost.y = canvas.height - ghost.radius;
-
-      if (!wasOnGround) {
-        hitGroundSound.currentTime = 0;
-        hitGroundSound.play();
-        reset();
-      }
+    // 重力（引っ張り中は無効）
+    if (!ghost.dragging && !ghost.waiting) {
+        ghost.vy += gravity;
+        ghost.x += ghost.vx;
+        ghost.y += ghost.vy;
     }
-    wasOnGround = onGround;
-  }
 
-  // アニメーション
-  ghostAnimTimer++;
-  if (ghostAnimTimer % 10 === 0) {
-    ghostFrame = (ghostFrame + 1) % 2;
-  }
+    // 壁判定
+    if (ghost.x < ghost.radius) {
+        ghost.x = ghost.radius;
+        ghost.vx *= -bounce;
+        hitBlockSound.play();
+    }
+    if (ghost.x > canvas.width - ghost.radius) {
+        ghost.x = canvas.width - ghost.radius;
+        ghost.vx *= -bounce;
+        hitBlockSound.play();
+    }
+    if (ghost.y < ghost.radius) {
+        ghost.y = ghost.radius;
+        ghost.vy *= -bounce;
+        hitBlockSound.play();
+    }
 
-  if (tryTextTimer > 0) tryTextTimer--;
+    // 地面落下判定（引っ張り中は無効）
+    if (!ghost.waiting && !ghost.dragging) {
+        let onGround = ghost.y >= canvas.height - ghost.radius;
 
-  // ★ 引っ張り中は障害物判定を無効化
-  if (!ghost.dragging && !ghost.waiting && !ghost.frozen) {
-    blocks.forEach(block => {
-      if (!block.alive) return;
+        if (onGround) {
+            ghost.y = canvas.height - ghost.radius;
 
-      let hit =
-        ghost.x + ghost.radius > block.x &&
-        ghost.x - ghost.radius < block.x + block.w &&
-        ghost.y + ghost.radius > block.y &&
-        ghost.y - ghost.radius < block.y + block.h;
+            if (!wasOnGround) {
+                hitGroundSound.currentTime = 0;
+                hitGroundSound.play();
+                reset();
+            }
+        }
+        wasOnGround = onGround;
+    }
 
-      if (!hit) return;
+    // アニメーション
+    ghostAnimTimer++;
+    if (ghostAnimTimer % 10 === 0) {
+        ghostFrame = (ghostFrame + 1) % 2;
+    }
 
-      block.alive = false;
-      hitBlockSound.play();
+    if (tryTextTimer > 0) tryTextTimer--;
 
-      ghost.vx *= -0.5;
-      ghost.vy = -2;
-    });
-  }
+    // ★ 引っ張り中は障害物判定を無効化
+    if (!ghost.dragging && !ghost.waiting && !ghost.frozen) {
+        blocks.forEach(block => {
+            if (!block.alive) return;
 
-  // ★ クリア判定（1回だけ）
-  let dx = ghost.x - target.x;
-  let dy = ghost.y - target.y;
+            let hit =
+                ghost.x + ghost.radius > block.x &&
+                ghost.x - ghost.radius < block.x + block.w &&
+                ghost.y + ghost.radius > block.y &&
+                ghost.y - ghost.radius < block.y + block.h;
 
-  if (!cleared && dx * dx + dy * dy < (ghost.radius + target.radius) ** 2) {
+            if (!hit) return;
 
-    cleared = true;
-    ghost.frozen = true;
-    ghost.vx = 0;
-    ghost.vy = 0;
+            block.alive = false;
+            hitBlockSound.play();
 
-    clearSound.currentTime = 0;
-    clearSound.play();
+            ghost.vx *= -0.5;
+            ghost.vy = -2;
+        });
+    }
 
-    setTimeout(() => {
-      alert("クリア！");
-      fullReset();
-    }, 600);
-  }
+    // ★ クリア判定（1回だけ）
+    let dx = ghost.x - target.x;
+    let dy = ghost.y - target.y;
+
+    if (!cleared && dx * dx + dy * dy < (ghost.radius + target.radius) ** 2) {
+
+        cleared = true;
+        ghost.frozen = true;
+        ghost.vx = 0;
+        ghost.vy = 0;
+
+        clearSound.currentTime = 0;
+        clearSound.play();
+
+        setTimeout(() => {
+            alert("クリア！");
+            fullReset();
+        }, 600);
+    }
 }
 
+// ===============================
+//  リセット処理
+// ===============================
 function fullReset() {
-  lives = 3;
+    lives = 3;
 
-  ghost.x = slingX;
-  ghost.y = slingY;
-  ghost.vx = 0;
-  ghost.vy = 0;
-  ghost.waiting = true;
-  ghost.frozen = false;
+    ghost.x = slingX;
+    ghost.y = slingY;
+    ghost.vx = 0;
+    ghost.vy = 0;
+    ghost.waiting = true;
+    ghost.frozen = false;
 
-  blocks.forEach(b => b.alive = true);
+    blocks.forEach(b => b.alive = true);
 
-  cleared = false;
+    cleared = false;
 
-  showTryText();
+    showTryText();
 }
 
 function reset() {
-  lives--;
+    lives--;
 
-  if (lives <= 0) {
+    if (lives <= 0) {
 
-    ghost.frozen = true;
+        ghost.frozen = true;
 
-    gameoverSound.currentTime = 0;
-    gameoverSound.play();
+        gameoverSound.currentTime = 0;
+        gameoverSound.play();
 
-    setTimeout(() => {
-      alert("ゲームオーバー！");
-      fullReset();
-    }, 600);
+        setTimeout(() => {
+            alert("ゲームオーバー！");
+            fullReset();
+        }, 600);
 
-    return;
-  }
-
-  ghost.x = slingX;
-  ghost.y = slingY;
-  ghost.vx = 0;
-  ghost.vy = 0;
-  ghost.waiting = true;
-
-  showTryText();
-}
-
-function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  if (tryTextTimer > 0) {
-    ctx.fillStyle = "yellow";
-    ctx.font = "30px sans-serif";
-    ctx.fillText(tryText, 20, 70);
-  }
-
-  ctx.fillStyle = "white";
-  ctx.font = "20px sans-serif";
-  ctx.fillText("Ghost: " + lives, 20, 30);
-
-  if (ghost.dragging) {
-    ctx.strokeStyle = "yellow";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(slingX, slingY);
-    ctx.lineTo(ghost.x, ghost.y);
-    ctx.stroke();
-  }
-
-  blocks.forEach(block => {
-    if (block.alive) {
-      ctx.drawImage(blockImg, block.x, block.y, block.w, block.h);
+        return;
     }
-  });
 
-  let img = ghostFrame === 0 ? ghost1 : ghost2;
-  ctx.drawImage(img, ghost.x - ghost.radius, ghost.y - ghost.radius, ghost.radius * 2, ghost.radius * 2);
+    ghost.x = slingX;
+    ghost.y = slingY;
+    ghost.vx = 0;
+    ghost.vy = 0;
+    ghost.waiting = true;
 
-  ctx.drawImage(
-    targetImg,
-    target.x - target.radius,
-    target.y - target.radius,
-    target.radius * 2,
-    target.radius * 2
-  );
+    showTryText();
 }
 
+// ===============================
+//  描画
+// ===============================
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (tryTextTimer > 0) {
+        ctx.fillStyle = "yellow";
+        ctx.font = "30px sans-serif";
+        ctx.fillText(tryText, 20, 70);
+    }
+
+    ctx.fillStyle = "white";
+    ctx.font = "20px sans-serif";
+    ctx.fillText("Ghost: " + lives, 20, 30);
+
+    if (ghost.dragging) {
+        ctx.strokeStyle = "yellow";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(slingX, slingY);
+        ctx.lineTo(ghost.x, ghost.y);
+        ctx.stroke();
+    }
+
+    blocks.forEach(block => {
+        if (block.alive) {
+            ctx.drawImage(blockImg, block.x, block.y, block.w, block.h);
+        }
+    });
+
+    let img = ghostFrame === 0 ? ghost1 : ghost2;
+    ctx.drawImage(img, ghost.x - ghost.radius, ghost.y - ghost.radius, ghost.radius * 2, ghost.radius * 2);
+
+    ctx.drawImage(
+        targetImg,
+        target.x - target.radius,
+        target.y - target.radius,
+        target.radius * 2,
+        target.radius * 2
+    );
+}
+
+// ===============================
+//  メインループ
+// ===============================
 function loop() {
-  update();
-  draw();
-  requestAnimationFrame(loop);
+    update();
+    draw();
+    requestAnimationFrame(loop);
 }
 
 loop();
