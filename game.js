@@ -31,7 +31,7 @@ function applyDisplaySize() {
             canvas.style.height = "50vw";
         } else {
             // ★ 横向き（高さを増やす）
-            canvas.style.height = "100vw";
+            canvas.style.height = "50vw";
         }
 
     } else {
