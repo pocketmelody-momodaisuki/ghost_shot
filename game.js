@@ -11,24 +11,14 @@ if (isiPhone) {
 }
 
 // ===============================
-//  Canvas 初期化（PCとiPhoneでサイズを分ける）
+//  Canvas 初期化（固定サイズ）
 // ===============================
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-// PC → 800×400  
-// iPhone → 横幅フィット、高さは比率維持（2:1）
-function resizeCanvas() {
-    if (isiPhone) {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerWidth * 0.5;  // 800x400 の比率
-    } else {
-        canvas.width = 800;
-        canvas.height = 400;
-    }
-}
-resizeCanvas();
-window.addEventListener("resize", resizeCanvas);
+// ★ PCでもスマホでも 800×400 に固定（縦横比が崩れない）
+canvas.width = 800;
+canvas.height = 400;
 
 // ===============================
 //  ゲーム画像
@@ -60,7 +50,7 @@ let gameoverSound = new Audio("gameover.wav");
 // ===============================
 let ghost = {
     x: 100,
-    y: 350,
+    y: 300,   // ★ PCで引っ張りやすいように上げた（350→300）
     vx: 0,
     vy: 0,
     radius: 25,
@@ -80,7 +70,7 @@ const gravity = 0.4;
 const bounce = 0.6;
 
 const slingX = 100;
-const slingY = 350;
+const slingY = 300;
 
 let target = { x: 700, y: 350, radius: 30 };
 
