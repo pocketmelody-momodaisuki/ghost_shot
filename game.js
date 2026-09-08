@@ -1,3 +1,10 @@
+// ★ iPhone Safari の画面スクロール・リフレッシュを完全停止
+document.addEventListener("touchmove", function(e) {
+  e.preventDefault();
+}, { passive: false });
+
+document.body.style.overflow = "hidden";
+
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 

@@ -1,12 +1,12 @@
-body {
-  background-color: #222;
-  color: #fff;
-  text-align: center;
-  font-family: sans-serif;
+html, body {
+  margin: 0;
+  padding: 0;
+  overscroll-behavior: none;
+  overflow: hidden;
+  touch-action: none;
 }
 
 canvas {
-  background-color: #333;
-  margin-top: 20px;
-  border: 2px solid #555;
+  touch-action: none;
+  display: block;
 }
