@@ -3,7 +3,7 @@
 // ===============================
 const isiPhone = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-// iPhoneだけスクロール禁止（PCでは絶対に禁止しない）
+// iPhoneだけスクロール禁止
 if (isiPhone) {
     document.addEventListener("touchmove", e => e.preventDefault(), { passive: false });
     document.addEventListener("touchstart", e => e.preventDefault(), { passive: false });
@@ -11,21 +11,20 @@ if (isiPhone) {
 }
 
 // ===============================
-//  Canvas 初期化
+//  Canvas 初期化（内部座標は固定）
 // ===============================
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-// ★ 内部座標は固定（800×400）
-//   → PCでもiPhoneでもゲーム判定がズレない
+// 内部座標は固定（800×400）
 canvas.width = 800;
 canvas.height = 400;
 
-// ★ iPhoneでは表示サイズだけ縮小（内部座標はそのまま）
+// iPhoneでは表示サイズだけ縮小（内部座標はそのまま）
 function applyDisplaySize() {
     if (isiPhone) {
         canvas.style.width = "100vw";
-        canvas.style.height = "50vw"; // 800×400 の比率（2:1）
+        canvas.style.height = "50vw"; // 800×400 の比率
     } else {
         canvas.style.width = "800px";
         canvas.style.height = "400px";
@@ -64,7 +63,7 @@ let gameoverSound = new Audio("gameover.wav");
 // ===============================
 let ghost = {
     x: 100,
-    y: 250,   // ★ さらに上げた（300 → 250）
+    y: 200,   // ★ PCでさらに引っ張りやすいように上げた（250→200）
     vx: 0,
     vy: 0,
     radius: 25,
@@ -84,7 +83,7 @@ const gravity = 0.4;
 const bounce = 0.6;
 
 const slingX = 100;
-const slingY = 250;
+const slingY = 200;
 
 let target = { x: 700, y: 350, radius: 30 };
 
@@ -112,19 +111,25 @@ function showTryText() {
 }
 
 // ===============================
-//  pointer イベント（iPhoneだけ preventDefault）
+//  pointer イベント（iPhoneだけ座標変換）
 // ===============================
+function getPointerPos(e) {
+    let rect = canvas.getBoundingClientRect();
+    return {
+        x: (e.clientX - rect.left) * (canvas.width / rect.width),
+        y: (e.clientY - rect.top) * (canvas.height / rect.height)
+    };
+}
+
 canvas.addEventListener("pointerdown", (e) => {
     if (isiPhone) e.preventDefault();
 
     if (ghost.frozen) return;
 
-    let rect = canvas.getBoundingClientRect();
-    let mx = (e.clientX - rect.left) * (canvas.width / rect.width);
-    let my = (e.clientY - rect.top) * (canvas.height / rect.height);
+    let pos = getPointerPos(e);
 
-    let dx = mx - ghost.x;
-    let dy = my - ghost.y;
+    let dx = pos.x - ghost.x;
+    let dy = pos.y - ghost.y;
 
     if (dx * dx + dy * dy < ghost.radius * ghost.radius) {
         ghost.dragging = true;
@@ -138,9 +143,9 @@ canvas.addEventListener("pointermove", (e) => {
     if (isiPhone) e.preventDefault();
 
     if (ghost.dragging && !ghost.frozen) {
-        let rect = canvas.getBoundingClientRect();
-        ghost.x = (e.clientX - rect.left) * (canvas.width / rect.width);
-        ghost.y = (e.clientY - rect.top) * (canvas.height / rect.height);
+        let pos = getPointerPos(e);
+        ghost.x = pos.x;
+        ghost.y = pos.y;
     }
 }, { passive: false });
 
@@ -175,24 +180,21 @@ function update() {
         ghost.y += ghost.vy;
     }
 
-    // 壁判定
+    // 壁判定（★音を鳴らさないように修正）
     if (ghost.x < ghost.radius) {
         ghost.x = ghost.radius;
         ghost.vx *= -bounce;
-        hitBlockSound.play();
     }
     if (ghost.x > canvas.width - ghost.radius) {
         ghost.x = canvas.width - ghost.radius;
         ghost.vx *= -bounce;
-        hitBlockSound.play();
     }
     if (ghost.y < ghost.radius) {
         ghost.y = ghost.radius;
         ghost.vy *= -bounce;
-        hitBlockSound.play();
     }
 
-    // 地面落下判定（引っ張り中は無効）
+    // 地面落下判定
     if (!ghost.waiting && !ghost.dragging) {
         let onGround = ghost.y >= canvas.height - ghost.radius;
 
@@ -237,7 +239,7 @@ function update() {
         });
     }
 
-    // ★ クリア判定（1回だけ）
+    // ★ クリア判定
     let dx = ghost.x - target.x;
     let dy = ghost.y - target.y;
 
