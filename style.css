@@ -4,12 +4,12 @@ html, body {
   background: black;
 }
 
-  /* Safari のスクロール・リフレッシュを完全停止 */
-  overscroll-behavior: none;
-  overflow: hidden;
-  touch-action: none;
+/* Safari のスクロール・リフレッシュを完全停止 */
+overscroll-behavior: none;
+overflow: hidden;
+touch-action: none;
+background: black; /* ← 背景が白くなるのを防ぐ */
 
-  background: black; /* ← 背景が白くなるのを防ぐ */
 /* PC用（縮まない） */
 @media (min-width: 800px) {
   canvas {
